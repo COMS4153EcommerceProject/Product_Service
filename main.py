@@ -1,152 +1,207 @@
 from __future__ import annotations
 import os
-import socket
-from datetime import datetime
 from typing import Dict, List, Optional
-from uuid import UUID, uuid4
+from uuid import UUID
 
-from fastapi import FastAPI, HTTPException, Query, Path, status
+from fastapi import FastAPI, HTTPException, Query, status
 
-from models.user import UserCreate, UserRead, UserUpdate
-from models.order import OrderCreate, OrderRead, OrderUpdate
-from models.health import Health
+from models.product import ProductCreate, ProductRead, ProductUpdate
+from models.category import CategoryCreate, CategoryRead, CategoryUpdate
+from models.inventory import InventoryCreate, InventoryRead, InventoryUpdate
 
 port = int(os.environ.get("FASTAPIPORT", 8000))
 
 # --------------------------------------------------------------------------
 # In-memory "databases"
 # --------------------------------------------------------------------------
-users: Dict[UUID, UserRead] = {}
-orders: Dict[UUID, OrderRead] = {}
+products: Dict[UUID, ProductRead] = {}
+categories: Dict[UUID, CategoryRead] = {}
+inventories: Dict[UUID, InventoryRead] = {}
 
 app = FastAPI(
-    title="User/Order API",
-    description="Demo FastAPI app using Pydantic v2 models for User and Order",
+    title="Product/Category/Inventory API",
+    description="Demo FastAPI app using Pydantic v2 models for an e-commerce Product module.",
     version="0.1.0",
 )
 
 # --------------------------------------------------------------------------
-# Health endpoints
+# Product endpoints
 # --------------------------------------------------------------------------
-# def make_health(echo: Optional[str], path_echo: Optional[str] = None) -> Health:
-#     return Health(
-#         status=200,
-#         status_message="OK",
-#         timestamp=datetime.utcnow().isoformat() + "Z",
-#         ip_address=socket.gethostbyname(socket.gethostname()),
-#         echo=echo,
-#         path_echo=path_echo
-#     )
-#
-# @app.get("/health", response_model=Health)
-# def get_health_no_path(echo: str | None = Query(None)):
-#     return make_health(echo=echo, path_echo=None)
-#
-# @app.get("/health/{path_echo}", response_model=Health)
-# def get_health_with_path(
-#     path_echo: str = Path(...),
-#     echo: str | None = Query(None),
-# ):
-#     return make_health(echo=echo, path_echo=path_echo)
+@app.post("/products", response_model=ProductRead, status_code=201, tags=["Product"])
+def create_product(product: ProductCreate):
+    product_read = ProductRead(**product.model_dump())
+    products[product_read.product_id] = product_read
+    return product_read
 
-# --------------------------------------------------------------------------
-# Order endpoints
-# --------------------------------------------------------------------------
-@app.post("/orders", response_model=OrderRead, status_code=201)
-def create_order(order: OrderCreate):
-    order_read = OrderRead(**order.model_dump())
-    orders[order_read.id] = order_read
-    return order_read
 
-@app.get("/orders", response_model=List[OrderRead])
-def list_orders(
-    item: Optional[str] = Query(None),
-    status: Optional[str] = Query(None),
+@app.get("/products", response_model=List[ProductRead], tags=["Product"])
+def list_products(
+    name: Optional[str] = Query(None),
+    category_id: Optional[UUID] = Query(None),
 ):
-    results = list(orders.values())
-    if item is not None:
-        results = [o for o in results if o.item == item]
-    if status is not None:
-        results = [o for o in results if o.status == status]
+    results = list(products.values())
+    if name:
+        results = [p for p in results if p.name == name]
+    if category_id:
+        results = [p for p in results if p.category_id == category_id]
     return results
 
-@app.get("/orders/{order_id}", response_model=OrderRead)
-def get_order(order_id: UUID):
-    if order_id not in orders:
-        raise HTTPException(status_code=404, detail="Order not found")
-    return orders[order_id]
 
-@app.patch("/orders/{order_id}", response_model=OrderRead)
-def update_order(order_id: UUID, update: OrderUpdate):
-    if order_id not in orders:
-        raise HTTPException(status_code=404, detail="Order not found")
-    stored = orders[order_id].model_dump()
+@app.get("/products/{product_id}", response_model=ProductRead, tags=["Product"])
+def get_product(product_id: UUID):
+    if product_id not in products:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return products[product_id]
+
+
+@app.put("/products/{product_id}", response_model=ProductRead, tags=["Product"])
+def update_product(product_id: UUID, update: ProductUpdate):
+    if product_id not in products:
+        raise HTTPException(status_code=404, detail="Product not found")
+    stored = products[product_id].model_dump()
     stored.update(update.model_dump(exclude_unset=True))
-    orders[order_id] = OrderRead(**stored)
-    return orders[order_id]
+    products[product_id] = ProductRead(**stored)
+    return products[product_id]
 
-@app.delete("/orders/{order_id}", response_model=OrderRead)
-def delete_order(order_id: UUID):
-    if order_id not in orders:
-        raise HTTPException(status_code=404, detail="Order not found")
-    removed = orders.pop(order_id)
-    return removed
-# --------------------------------------------------------------------------
-# User endpoints
-# --------------------------------------------------------------------------
-@app.post("/users", response_model=UserRead, status_code=201)
-def create_user(user: UserCreate):
-    user_read = UserRead(**user.model_dump())
-    users[user_read.id] = user_read
-    return user_read
 
-@app.get("/users", response_model=List[UserRead])
-def list_users(
-    first_name: Optional[str] = Query(None),
-    last_name: Optional[str] = Query(None),
-    email: Optional[str] = Query(None),
-):
-    results = list(users.values())
-    if first_name is not None:
-        results = [u for u in results if u.first_name == first_name]
-    if last_name is not None:
-        results = [u for u in results if u.last_name == last_name]
-    if email is not None:
-        results = [u for u in results if u.email == email]
+@app.delete("/products/{product_id}", response_model=ProductRead, tags=["Product"])
+def delete_product(product_id: UUID):
+    if product_id not in products:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return products.pop(product_id)
+
+
+# --------------------------------------------------------------------------
+# Product -> Inventory & Category lookups
+# --------------------------------------------------------------------------
+@app.get("/products/{product_id}/inventory", response_model=InventoryRead, tags=["Product"])
+def get_inventory_from_product(product_id: UUID):
+    """Fetch the inventory details linked to a specific product."""
+    if product_id not in products:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    product = products[product_id]
+    if not product.product_id:
+        raise HTTPException(status_code=404, detail="This product has no linked inventory record")
+
+    product_id = product.product_id
+    if product_id not in inventories:
+        raise HTTPException(status_code=404, detail="Linked inventory not found")
+
+    return inventories[product_id]
+
+
+@app.get("/products/{product_id}/category", response_model=CategoryRead, tags=["Product"])
+def get_category_from_product(product_id: UUID):
+    """Fetch the category details linked to a specific product."""
+    if product_id not in products:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    product = products[product_id]
+    if not product.category_id:
+        raise HTTPException(status_code=404, detail="This product has no linked category record")
+
+    category_id = product.category_id
+    if category_id not in categories:
+        raise HTTPException(status_code=404, detail="Linked category not found")
+
+    return categories[category_id]
+
+# --------------------------------------------------------------------------
+# Category endpoints
+# --------------------------------------------------------------------------
+@app.post("/categories", response_model=CategoryRead, status_code=201, tags=["Category"])
+def create_category(category: CategoryCreate):
+    category_read = CategoryRead(**category.model_dump())
+    categories[category_read.category_id] = category_read
+    return category_read
+
+
+@app.get("/categories", response_model=List[CategoryRead], tags=["Category"])
+def list_categories(name: Optional[str] = Query(None)):
+    results = list(categories.values())
+    if name:
+        results = [c for c in results if c.name == name]
     return results
 
-@app.get("/users/{user_id}", response_model=UserRead)
-def get_user(user_id: UUID):
-    if user_id not in users:
-        raise HTTPException(status_code=404, detail="User not found")
-    return users[user_id]
 
-@app.patch("/users/{user_id}", response_model=UserRead)
-def update_user(user_id: UUID, update: UserUpdate):
-    if user_id not in users:
-        raise HTTPException(status_code=404, detail="User not found")
-    stored = users[user_id].model_dump()
+@app.get("/categories/{category_id}", response_model=CategoryRead, tags=["Category"])
+def get_category(category_id: UUID):
+    if category_id not in categories:
+        raise HTTPException(status_code=404, detail="Category not found")
+    return categories[category_id]
+
+
+@app.put("/categories/{category_id}", response_model=CategoryRead, tags=["Category"])
+def update_category(category_id: UUID, update: CategoryUpdate):
+    if category_id not in categories:
+        raise HTTPException(status_code=404, detail="Category not found")
+    stored = categories[category_id].model_dump()
     stored.update(update.model_dump(exclude_unset=True))
-    users[user_id] = UserRead(**stored)
-    return users[user_id]
+    categories[category_id] = CategoryRead(**stored)
+    return categories[category_id]
 
-@app.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_user(user_id: UUID):
-    if user_id not in users:
-        raise HTTPException(status_code=404, detail="User not found")
-    del users[user_id]
-    return None
+
+@app.delete("/categories/{category_id}", response_model=CategoryRead, tags=["Category"])
+def delete_category(category_id: UUID):
+    if category_id not in categories:
+        raise HTTPException(status_code=404, detail="Category not found")
+    return categories.pop(category_id)
+
+
+# --------------------------------------------------------------------------
+# Inventory endpoints
+# --------------------------------------------------------------------------
+@app.post("/inventories", response_model=InventoryRead, status_code=201, tags=["Inventory"])
+def create_inventory(inventory: InventoryCreate):
+    inventory_read = InventoryRead(**inventory.model_dump())
+    inventories[inventory_read.product_id] = inventory_read
+    return inventory_read
+
+
+@app.get("/inventories", response_model=List[InventoryRead], tags=["Inventory"])
+def list_inventories(product_id: Optional[UUID] = Query(None)):
+    results = list(inventories.values())
+    if product_id:
+        results = [i for i in results if i.product_id == product_id]
+    return results
+
+
+@app.get("/inventories/{product_id}", response_model=InventoryRead, tags=["Inventory"])
+def get_inventory(product_id: UUID):
+    if product_id not in inventories:
+        raise HTTPException(status_code=404, detail="Inventory not found")
+    return inventories[product_id]
+
+
+@app.put("/inventories/{product_id}", response_model=InventoryRead, tags=["Inventory"])
+def update_inventory(product_id: UUID, update: InventoryUpdate):
+    if product_id not in inventories:
+        raise HTTPException(status_code=404, detail="Inventory not found")
+    stored = inventories[product_id].model_dump()
+    stored.update(update.model_dump(exclude_unset=True))
+    inventories[product_id] = InventoryRead(**stored)
+    return inventories[product_id]
+
+
+@app.delete("/inventories/{product_id}", response_model=InventoryRead, tags=["Inventory"])
+def delete_inventory(product_id: UUID):
+    if product_id not in inventories:
+        raise HTTPException(status_code=404, detail="Inventory not found")
+    return inventories.pop(product_id)
+
+
 # --------------------------------------------------------------------------
 # Root
 # --------------------------------------------------------------------------
 @app.get("/")
 def root():
-    return {"message": "Welcome to the User/Order API. See /docs for OpenAPI UI."}
+    return {"message": "Welcome to the Product/Category/Inventory API. See /docs for OpenAPI UI."}
+
 
 # --------------------------------------------------------------------------
 # Entrypoint
 # --------------------------------------------------------------------------
-# check for image
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
