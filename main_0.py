@@ -5,79 +5,25 @@ from uuid import UUID
 
 from fastapi import FastAPI, HTTPException, Query
 
-# Import your Pydantic models
 from models.product import ProductCreate, ProductRead, ProductUpdate
 from models.category import CategoryCreate, CategoryRead, CategoryUpdate
 from models.inventory import InventoryCreate, InventoryRead, InventoryUpdate
 
-# Import your resource classes
 from resources.product_resource import ProductResource
 from resources.category_resource import CategoryResource
 from resources.inventory_resource import InventoryResource
-
-import pymysql
-from pymysql.cursors import DictCursor
-
-# --------------------------------------------------------------------------
-# CONFIGURATION for Cloud SQL + Local Development
-# --------------------------------------------------------------------------
-
-def get_db_connection():
-    """
-    Connect to MySQL using either:
-    - Cloud SQL Unix socket (Cloud Run)
-    - TCP host (Local dev)
-    """
-
-    # Cloud Run socket path
-    db_socket = os.getenv("DB_SOCKET")  # e.g. "/cloudsql/project:region:instance"
-    db_host = os.getenv("DB_HOST")      # e.g. "127.0.0.1" for local dev
-    db_user = os.getenv("DB_USER")
-    db_pass = os.getenv("DB_PASSWORD")
-    db_name = os.getenv("DB_NAME")
-
-    if db_socket:
-        # Cloud Run connection
-        return pymysql.connect(
-            unix_socket=db_socket,
-            user=db_user,
-            password=db_pass,
-            database=db_name,
-            cursorclass=DictCursor,
-        )
-    else:
-        # Local development over TCP/IP
-        return pymysql.connect(
-            host=db_host or "127.0.0.1",
-            port=3306,
-            user=db_user,
-            password=db_pass,
-            database=db_name,
-            cursorclass=DictCursor,
-        )
-
-
-# Make database connection available to Resource classes
-ProductResource.get_connection = staticmethod(get_db_connection)
-CategoryResource.get_connection = staticmethod(get_db_connection)
-InventoryResource.get_connection = staticmethod(get_db_connection)
-
-# --------------------------------------------------------------------------
-# FastAPI App
-# --------------------------------------------------------------------------
 
 port = int(os.environ.get("FASTAPIPORT", 8003))
 
 app = FastAPI(
     title="Product/Category/Inventory API",
-    description="FastAPI Microservice backed by Cloud SQL.",
-    version="0.3.0",
+    description="Modular FastAPI app using Pydantic v2 models for e-commerce microservices.",
+    version="0.2.0",
 )
 
 # --------------------------------------------------------------------------
 # Product endpoints
 # --------------------------------------------------------------------------
-
 @app.post("/products", response_model=ProductRead, status_code=201, tags=["Product"])
 def create_product(product: ProductCreate):
     return ProductResource.create_product(product)
@@ -105,10 +51,10 @@ def update_product(product_id: UUID, update: ProductUpdate):
 def delete_product(product_id: UUID):
     return ProductResource.delete_product(product_id)
 
+
 # --------------------------------------------------------------------------
 # Category endpoints
 # --------------------------------------------------------------------------
-
 @app.post("/categories", response_model=CategoryRead, status_code=201, tags=["Category"])
 def create_category(category: CategoryCreate):
     return CategoryResource.create_category(category)
@@ -133,10 +79,10 @@ def update_category(category_id: UUID, update: CategoryUpdate):
 def delete_category(category_id: UUID):
     return CategoryResource.delete_category(category_id)
 
+
 # --------------------------------------------------------------------------
 # Inventory endpoints
 # --------------------------------------------------------------------------
-
 @app.post("/inventories", response_model=InventoryRead, status_code=201, tags=["Inventory"])
 def create_inventory(inventory: InventoryCreate):
     return InventoryResource.create_inventory(inventory)
@@ -164,18 +110,18 @@ def update_inventory(inventory_id: UUID, update: InventoryUpdate):
 def delete_inventory(inventory_id: UUID):
     return InventoryResource.delete_inventory(inventory_id)
 
+
 # --------------------------------------------------------------------------
 # Root
 # --------------------------------------------------------------------------
-
 @app.get("/")
 def root():
-    return {"message": "Product/Category/Inventory API is running. See /docs."}
+    return {"message": "Welcome to the Product/Category/Inventory API. See /docs for OpenAPI UI."}
+
 
 # --------------------------------------------------------------------------
 # Entrypoint
 # --------------------------------------------------------------------------
-
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=port)
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
