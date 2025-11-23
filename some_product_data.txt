@@ -10,7 +10,7 @@ PRODUCT_DATA='{
   "inventory_id": "b1187a23-b8de-45ed-93b3-76d4e4d9a98c"
 }'
 
-curl -X POST "$ {SERVICE_URL}/product" \
+curl -X POST "${SERVICE_URL}/products" \
  -H "Content-Type: application/json" \
  -d "$PRODUCT_DATA"
 
@@ -23,6 +23,6 @@ UPDATED_DATA='{
   "inventory_id": "b1187a23-b8de-45ed-93b3-76d4e4d9a98c"
 }'
 
-curl -X PUT "${SERVICE_URL}/product/4f9c0272-6a13-4f8a-90bd-2f315b058c6e" \
+curl -X PUT "${SERVICE_URL}/products/4f9c0272-6a13-4f8a-90bd-2f315b058c6e" \
   -H "Content-Type: application/json" \
   -d "$UPDATED_DATA"

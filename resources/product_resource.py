@@ -1,5 +1,5 @@
 from typing import Dict, List, Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 from fastapi import HTTPException, Query
 from models.product import ProductCreate, ProductRead, ProductUpdate
 
@@ -16,7 +16,7 @@ class ProductResource:
 
         # Convert ProductCreate → ProductRead (server assigns product_id)
         new_product = ProductRead(
-            product_id=product.product_id,
+            product_id=uuid4(), #product.product_id,
             name=product.name,
             description=product.description,
             price=product.price,
