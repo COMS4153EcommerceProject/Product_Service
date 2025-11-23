@@ -62,9 +62,13 @@ class ProductBase(BaseModel):
     }
 
 
-class ProductCreate(ProductBase):
-    pass
-
+class ProductCreate(BaseModel):
+    name: str = Field(..., example="Wireless Mouse")
+    description: Optional[str] = Field(None, example="Ergonomic wireless mouse")
+    price: float = Field(..., ge=0, example=29.99)
+    rating: Optional[float] = Field(None, ge=0, le=5, example=4.5)
+    category_id: Optional[UUID] = Field(None, example="9c37a7e4-6f6d-49f5-b2ea-34a3b29d9a11")
+    inventory_id: Optional[UUID] = Field(None, example="b6f63b25-15d8-4e12-8c6e-8a87a1254e22")
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = Field(None, example="Mechanical Keyboard")

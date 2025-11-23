@@ -1,0 +1,28 @@
+SERVICE_URL="https://product-service-1056727803439.us-central1.run.app"
+
+PRODUCT_DATA='{
+  "product_id": "4f9c0272-6a13-4f8a-90bd-2f315b058c6e",
+  "name": "KeyPro TKL Mechanical Keyboard",
+  "description": "Tenkeyless mechanical keyboard with hot-swappable switches and RGB backlighting.",
+  "price": 129.99,
+  "rating": 4.6,
+  "category_id": "7ad3b5c0-9f35-4dea-b68e-4f011cb8e4c1",
+  "inventory_id": "b1187a23-b8de-45ed-93b3-76d4e4d9a98c"
+}'
+
+curl -X POST "$ {SERVICE_URL}/product" \
+ -H "Content-Type: application/json" \
+ -d "$PRODUCT_DATA"
+
+UPDATED_DATA='{
+  "name": "KeyPro TKL Mechanical Keyboard V2",
+  "description": "Updated ergonomic mechanical keyboard with PBT keycaps and RGB lighting.",
+  "price": 139.99,
+  "rating": 4.7,
+  "category_id": "7ad3b5c0-9f35-4dea-b68e-4f011cb8e4c1",
+  "inventory_id": "b1187a23-b8de-45ed-93b3-76d4e4d9a98c"
+}'
+
+curl -X PUT "${SERVICE_URL}/product/4f9c0272-6a13-4f8a-90bd-2f315b058c6e" \
+  -H "Content-Type: application/json" \
+  -d "$UPDATED_DATA"
