@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS inventory;
+
 CREATE TABLE IF NOT EXISTS inventory (
   inventory_id CHAR(36) PRIMARY KEY,
   product_id   CHAR(36) NOT NULL,
