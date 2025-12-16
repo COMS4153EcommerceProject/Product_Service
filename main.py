@@ -23,38 +23,47 @@ from pymysql.cursors import DictCursor
 # --------------------------------------------------------------------------
 
 def get_db_connection():
-    """
-    Connect to MySQL using either:
-    - Cloud SQL Unix socket (Cloud Run)
-    - TCP host (Local dev)
-    """
+    return pymysql.connect(
+        host=os.environ["DB_HOST"],
+        user=os.environ["DB_USER"],
+        password=os.environ["DB_PASSWORD"],
+        database=os.environ["DB_NAME"],
+        cursorclass=pymysql.cursors.DictCursor,
+        autocommit=False,
+    )
+# def get_db_connection():
+#     """
+#     Connect to MySQL using either:
+#     - Cloud SQL Unix socket (Cloud Run)
+#     - TCP host (Local dev)
+#     """
 
-    # Cloud Run socket path
-    db_socket = os.getenv("DB_SOCKET")  # e.g. "/cloudsql/project:region:instance"
-    db_host = os.getenv("DB_HOST")      # e.g. "127.0.0.1" for local dev
-    db_user = os.getenv("DB_USER")
-    db_pass = os.getenv("DB_PASSWORD")
-    db_name = os.getenv("DB_NAME")
+#     # Cloud Run socket path
+#     db_socket = os.getenv("DB_SOCKET")  # e.g. "/cloudsql/project:region:instance"
+#     db_host = os.getenv("DB_HOST")      # e.g. "127.0.0.1" for local dev
+#     db_user = os.getenv("DB_USER")
+#     db_pass = os.getenv("DB_PASSWORD")
+#     db_name = os.getenv("DB_NAME")
 
-    if db_socket:
-        # Cloud Run connection
-        return pymysql.connect(
-            unix_socket=db_socket,
-            user=db_user,
-            password=db_pass,
-            database=db_name,
-            cursorclass=DictCursor,
-        )
-    else:
-        # Local development over TCP/IP
-        return pymysql.connect(
-            host=db_host or "127.0.0.1",
-            port=3306,
-            user=db_user,
-            password=db_pass,
-            database=db_name,
-            cursorclass=DictCursor,
-        )
+#     if db_socket:
+#         # Cloud Run connection
+#         return pymysql.connect(
+#             unix_socket=db_socket,
+#             user=db_user,
+#             password=db_pass,
+#             database=db_name,
+#             cursorclass=DictCursor,
+#         )
+#     else:
+#         # Local development over TCP/IP
+#         return pymysql.connect(
+#             host=db_host or "127.0.0.1",
+#             port=3306,
+#             user=db_user,
+#             password=db_pass,
+#             database=db_name,
+#             cursorclass=DictCursor,
+#         )
 
 
 # Make database connection available to Resource classes
