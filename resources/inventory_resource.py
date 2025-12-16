@@ -91,37 +91,36 @@ from datetime import datetime
 from fastapi import HTTPException, Query
 
 from models.inventory import InventoryCreate, InventoryRead, InventoryUpdate
-from db import get_db_connection
 
 
 class InventoryResource:
-    """Resource class for Inventory CRUD operations (DB-based)"""
+    """Resource class for Inventory CRUD operations (Cloud SQL backed)"""
+
+    # get_connection is injected from main.py
+    get_connection = None
 
     @staticmethod
     def create_inventory(inventory: InventoryCreate) -> InventoryRead:
+        conn = InventoryResource.get_connection()
         inventory_id = str(uuid4())
         now = inventory.update_time or datetime.utcnow()
 
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    INSERT INTO inventories
-                    (inventory_id, product_id, stock_quantity, warehouse_location, update_time)
-                    VALUES (%s, %s, %s, %s, %s)
-                    """,
-                    (
-                        inventory_id,
-                        str(inventory.product_id),
-                        inventory.stock_quantity,
-                        inventory.warehouse_location,
-                        now,
-                    ),
-                )
-            conn.commit()
-        finally:
-            conn.close()
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO inventories
+                (inventory_id, product_id, stock_quantity, warehouse_location, update_time)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (
+                    inventory_id,
+                    str(inventory.product_id),
+                    inventory.stock_quantity,
+                    inventory.warehouse_location,
+                    now,
+                ),
+            )
+        conn.commit()
 
         return InventoryRead(
             inventory_id=UUID(inventory_id),
@@ -137,6 +136,8 @@ class InventoryResource:
         warehouse_location: Optional[str] = Query(None),
     ) -> List[InventoryRead]:
 
+        conn = InventoryResource.get_connection()
+
         query = "SELECT * FROM inventories WHERE 1=1"
         params = []
 
@@ -148,13 +149,9 @@ class InventoryResource:
             query += " AND warehouse_location = %s"
             params.append(warehouse_location)
 
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(query, params)
-                rows = cur.fetchall()
-        finally:
-            conn.close()
+        with conn.cursor() as cur:
+            cur.execute(query, params)
+            rows = cur.fetchall()
 
         return [
             InventoryRead(
@@ -169,16 +166,14 @@ class InventoryResource:
 
     @staticmethod
     def get_inventory_by_id(inventory_id: UUID) -> InventoryRead:
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT * FROM inventories WHERE inventory_id = %s",
-                    (str(inventory_id),),
-                )
-                row = cur.fetchone()
-        finally:
-            conn.close()
+        conn = InventoryResource.get_connection()
+
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT * FROM inventories WHERE inventory_id = %s",
+                (str(inventory_id),),
+            )
+            row = cur.fetchone()
 
         if not row:
             raise HTTPException(status_code=404, detail="Inventory not found")
@@ -206,38 +201,33 @@ class InventoryResource:
         set_clause = ", ".join(f"{k} = %s" for k in updates.keys())
         params = list(updates.values()) + [str(inventory_id)]
 
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(
-                    f"""
-                    UPDATE inventories
-                    SET {set_clause}
-                    WHERE inventory_id = %s
-                    """,
-                    params,
-                )
-                if cur.rowcount == 0:
-                    raise HTTPException(status_code=404, detail="Inventory not found")
-            conn.commit()
-        finally:
-            conn.close()
+        conn = InventoryResource.get_connection()
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                UPDATE inventories
+                SET {set_clause}
+                WHERE inventory_id = %s
+                """,
+                params,
+            )
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Inventory not found")
 
+        conn.commit()
         return InventoryResource.get_inventory_by_id(inventory_id)
 
     @staticmethod
     def delete_inventory(inventory_id: UUID) -> dict:
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "DELETE FROM inventories WHERE inventory_id = %s",
-                    (str(inventory_id),),
-                )
-                if cur.rowcount == 0:
-                    raise HTTPException(status_code=404, detail="Inventory not found")
-            conn.commit()
-        finally:
-            conn.close()
+        conn = InventoryResource.get_connection()
 
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM inventories WHERE inventory_id = %s",
+                (str(inventory_id),),
+            )
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Inventory not found")
+
+        conn.commit()
         return {"detail": "Inventory deleted successfully"}

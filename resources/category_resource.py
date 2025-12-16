@@ -85,39 +85,36 @@ from datetime import datetime
 from fastapi import HTTPException, Query
 
 from models.category import CategoryCreate, CategoryRead, CategoryUpdate
-from db import get_db_connection
 
 
 class CategoryResource:
-    """Resource class for Category CRUD operations (DB-based)"""
+    """Resource class for Category CRUD operations (Cloud SQL backed)"""
+
+    # get_connection is injected from main.py
+    get_connection = None
 
     @staticmethod
     def create_category(category: CategoryCreate) -> CategoryRead:
+        conn = CategoryResource.get_connection()
         category_id = str(uuid4())
         now = datetime.utcnow()
 
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    INSERT INTO categories
-                    (category_id, name, description, created_at, updated_at)
-                    VALUES (%s, %s, %s, %s, %s)
-                    """,
-                    (
-                        category_id,
-                        category.name,
-                        category.description,
-                        now,
-                        now,
-                    ),
-                )
-            conn.commit()
-        except Exception:
-            raise HTTPException(status_code=400, detail="Category already exists")
-        finally:
-            conn.close()
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO categories
+                (category_id, name, description, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (
+                    category_id,
+                    category.name,
+                    category.description,
+                    now,
+                    now,
+                ),
+            )
+        conn.commit()
 
         return CategoryRead(
             category_id=UUID(category_id),
@@ -129,6 +126,8 @@ class CategoryResource:
 
     @staticmethod
     def get_categories(name: Optional[str] = Query(None)) -> List[CategoryRead]:
+        conn = CategoryResource.get_connection()
+
         query = "SELECT * FROM categories WHERE 1=1"
         params = []
 
@@ -136,13 +135,9 @@ class CategoryResource:
             query += " AND LOWER(name) = LOWER(%s)"
             params.append(name)
 
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(query, params)
-                rows = cur.fetchall()
-        finally:
-            conn.close()
+        with conn.cursor() as cur:
+            cur.execute(query, params)
+            rows = cur.fetchall()
 
         return [
             CategoryRead(
@@ -157,16 +152,14 @@ class CategoryResource:
 
     @staticmethod
     def get_category_by_id(category_id: UUID) -> CategoryRead:
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT * FROM categories WHERE category_id = %s",
-                    (str(category_id),),
-                )
-                row = cur.fetchone()
-        finally:
-            conn.close()
+        conn = CategoryResource.get_connection()
+
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT * FROM categories WHERE category_id = %s",
+                (str(category_id),),
+            )
+            row = cur.fetchone()
 
         if not row:
             raise HTTPException(status_code=404, detail="Category not found")
@@ -194,38 +187,33 @@ class CategoryResource:
         set_clause = ", ".join(f"{k} = %s" for k in updates.keys())
         params = list(updates.values()) + [str(category_id)]
 
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(
-                    f"""
-                    UPDATE categories
-                    SET {set_clause}
-                    WHERE category_id = %s
-                    """,
-                    params,
-                )
-                if cur.rowcount == 0:
-                    raise HTTPException(status_code=404, detail="Category not found")
-            conn.commit()
-        finally:
-            conn.close()
+        conn = CategoryResource.get_connection()
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                UPDATE categories
+                SET {set_clause}
+                WHERE category_id = %s
+                """,
+                params,
+            )
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Category not found")
 
+        conn.commit()
         return CategoryResource.get_category_by_id(category_id)
 
     @staticmethod
     def delete_category(category_id: UUID) -> dict:
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "DELETE FROM categories WHERE category_id = %s",
-                    (str(category_id),),
-                )
-                if cur.rowcount == 0:
-                    raise HTTPException(status_code=404, detail="Category not found")
-            conn.commit()
-        finally:
-            conn.close()
+        conn = CategoryResource.get_connection()
 
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM categories WHERE category_id = %s",
+                (str(category_id),),
+            )
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Category not found")
+
+        conn.commit()
         return {"detail": "Category deleted successfully"}
