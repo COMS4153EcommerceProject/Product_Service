@@ -80,6 +80,13 @@ def update_product(product_id: UUID, update: ProductUpdate):
 def delete_product(product_id: UUID):
     return ProductResource.delete_product(product_id)
 
+@app.get(
+    "/products/{product_id}/inventory",
+    tags=["Product"]
+)
+def get_product_inventory(product_id: UUID):
+    return ProductResource.get_inventory_by_product_id(product_id)
+
 # --------------------------------------------------------------------------
 # Category endpoints
 # --------------------------------------------------------------------------

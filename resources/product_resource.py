@@ -170,6 +170,37 @@ class ProductResource:
             raise HTTPException(status_code=404, detail="Product not found")
 
         return product
+    
+    @staticmethod
+    def get_inventory_by_product_id(product_id: UUID):
+        conn = ProductResource.get_connection()
+
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    i.inventory_id,
+                    i.product_id,
+                    i.stock_quantity,
+                    i.warehouse_location,
+                    i.update_time,
+                    i.created_at
+                FROM products p
+                JOIN inventories i
+                  ON p.inventory_id = i.inventory_id
+                WHERE p.product_id = %s
+                """,
+                (str(product_id),),
+            )
+            inventory = cur.fetchone()
+
+        if not inventory:
+            raise HTTPException(
+                status_code=404,
+                detail="Inventory not found for this product"
+            )
+
+        return inventory
 
     @staticmethod
     def update_product(product_id: UUID, product_update: ProductUpdate) -> ProductRead:
