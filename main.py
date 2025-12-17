@@ -49,6 +49,14 @@ app = FastAPI(
     version="0.3.0",
 )
 
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],        # 先调通
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],        # 关键：允许 Authorization / Content-Type
+)
 # --------------------------------------------------------------------------
 # Product endpoints
 # --------------------------------------------------------------------------
